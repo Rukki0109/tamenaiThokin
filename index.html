@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>貯めない貯金 - 無駄を見える化する節約アプリ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-neon: #00eeff;
+            --secondary-neon: #ff00aa;
+            --dark-bg: #0f1525;
+            --light-bg: #1a2540;
+            --card-bg: rgba(30, 40, 65, 0.8);
+            --card-glow: rgba(0, 238, 255, 0.15);
+            --gold-primary: #ffdc73;
+            --gold-secondary: #ffc107;
+            --text-light: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.7);
+            --gradient-accent: linear-gradient(135deg, var(--primary-neon), var(--secondary-neon));
+            --animation-time: 0.3s;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            color: var(--text-light);
+            background-color: var(--dark-bg);
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(0, 100, 255, 0.1) 0%, transparent 30%),
+                radial-gradient(circle at 80% 70%, rgba(255, 0, 170, 0.08) 0%, transparent 30%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--dark-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .loading-logo {
+            margin-bottom: 50px;
+            font-weight: 900;
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            background: var(--gradient-accent);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: 2px;
+            position: relative;
+        }
+
+        .loading-logo span {
+            position: relative;
+            display: inline-block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .loading-logo span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .loading-logo span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .loading-progress {
+            width: 200px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loading-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: var(--gradient-accent);
+            animation: loading 2s ease-in-out forwards;
+            box-shadow: 0 0 15px 1px var(--primary-neon);
+        }
+
+        @keyframes loading {
+            0% { width: 0%; }
+            25% { width: 30%; }
+            50% { width: 60%; }
+            100% { width: 100%; }
+        }
+
+        .loading-text {
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+        }
+
+        /* Main Layout */
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 1s ease-in 0.5s;
+        }
+
+        /* Header */
+        .app-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 238, 255, 0.1);
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 0 10px var(--primary-neon);
+        }
+
+        .logo span {
+            background: var(--gradient-accent);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            font-weight: 900;
+            text-shadow: none; /* 無効化してテキスト読みやすく */
+            filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+        }
+
+        .app-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            font-weight: 300;
+            margin-top: 5px;
+            letter-spacing: 1px;
+        }
+
+        /* Monster and Food Display */
+        #monster-container {
+            width: 100%;
+            height: 350px;
+            margin-bottom: 25px;
+            background: radial-gradient(circle at center, #203050 0%, var(--dark-bg) 100%);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #pixelart-canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        .monster-info {
+            font-family: 'Press Start 2P', cursive;
+            color: var(--text-light);
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.8rem;
+            text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 12px 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px -3px var(--card-glow), inset 0 0 0 1px rgba(0, 238, 255, 0.3);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: var(--gradient-accent);
+            z-index: -1;
+            border-radius: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .stat-card:hover::before {
+            opacity: 0.3;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin: 5px 0;
+            background: linear-gradient(to bottom, var(--gold-primary), var(--gold-secondary));
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-title {
+            color: var(--text-dim);
+            font-size: 0.7rem;
+            font-weight: 500;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-icon {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.8rem;
+            color: var(--primary-neon);
+            opacity: 0.6;
+        }
+
+        /* Panel Cards */
+        .panel-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .panel-title i {
+            margin-right: 12px;
+            color: var(--primary-neon);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 15px;
+            border-radius: 10px;
+            color: white;
+            font-family: 'Noto Sans JP', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-neon);
+            box-shadow: 0 0 0 3px rgba(0, 238, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2300eeff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 15px;
+        }
+
+        .btn {
+            width: 100%;
+            background: var(--gradient-accent);
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 238, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            box-shadow: 0 6px 20px rgba(0, 238, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn::after {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: -100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: all 0.5s ease;
+        }
+
+        .btn:hover::after {
+            left: 100%;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .progress-track {
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0;
+            background: var(--gradient-accent);
+            border-radius: 4px;
+            position: relative;
+            box-shadow: 0 0 10px var(--primary-neon);
+            transition: width 1s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        /* History List */
+        .history-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .history-item {
+            margin-bottom: 10px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            border-left: 3px solid var(--primary-neon);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background: rgba(0, 0, 0, 0.3);
+            transform: translateX(3px);
+        }
+
+        .history-item-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .history-item-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .history-item-category {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+        }
+
+        .history-item-category i {
+            margin-right: 5px;
+            color: var(--primary-neon);
+        }
+
+        .history-item-date {
+            margin-left: 10px;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+        }
+
+        .history-item-amount {
+            font-weight: 700;
+            color: var(--gold-primary);
+        }
+
+        /* Category Chart Container */
+        .category-chart-container {
+            position: relative;
+            height: 250px;
+            margin-top: 20px;
+        }
+
+        /* Particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--primary-neon);
+            opacity: 0.3;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 2px var(--primary-neon);
+            animation: float-particle var(--animation-time) infinite linear;
+        }
+
+        @keyframes float-particle {
+            0% {
+                transform: translateY(0px);
+                opacity: 0;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+        }
+
+        /* Media Queries */
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 5px;
+            }
+            
+            .stat-card {
+                min-height: 80px;
+                padding: 8px 5px;
+            }
+            
+            .stat-value {
+                font-size: 1.1rem;
+            }
+            
+            .stat-title {
+                font-size: 0.6rem;
+            }
+            
+            #monster-container {
+                height: 280px;
+            }
+        }
+
+        /* Goal Achieved Animation */
+        .goal-achieved {
+            position: relative;
+        }
+
+        .goal-achieved::before {
+            content: "🎉";
+            position: absolute;
+            top: -20px;
+            right: 10px;
+            font-size: 1.5rem;
+            animation: celebrate 1s infinite alternate;
+        }
+
+        @keyframes celebrate {
+            0% {
+                transform: translateY(0) rotate(0);
+            }
+            100% {
+                transform: translateY(-10px) rotate(15deg);
+            }
+        }
+
+        /* Food Animation */
+        .food-item {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #ff9900;
+            animation: food-fall 1s ease-in forwards;
+            pointer-events: none;
+        }
+
+        @keyframes food-fall {
+            0% {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Speech Bubble */
+        .speech-bubble {
+            position: absolute;
+            background: white;
+            border-radius: 10px;
+            padding: 10px;
+            color: #333;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.7rem;
+            max-width: 150px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: bubble-appear 3s ease-in-out forwards;
+        }
+
+        .speech-bubble:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border: 10px solid transparent;
+            border-top-color: white;
+            border-bottom: 0;
+            margin-left: -10px;
+            margin-bottom: -10px;
+        }
+
+        @keyframes bubble-appear {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            10% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            80% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+
+        /* Special animation for new entries */
+        @keyframes newEntry {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .new-entry {
+            animation: newEntry 0.5s ease-out forwards;
+        }
+        
+        /* Monster levels */
+        .monster-level {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.7rem;
+            color: var(--gold-primary);
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 10px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        /* Food counter */
+        .food-counter {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.7rem;
+            color: #ff9900;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 10px;
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loading-screen">
+        <div class="loading-logo">
+            <span>節</span><span>約</span><span>✨</span>
+        </div>
+        <div class="loading-progress">
+            <div class="loading-bar"></div>
+        </div>
+        <div class="loading-text">しばらくお待ち下さい...</div>
+    </div>
+
+    <!-- Particles background effect -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Main App Container -->
+    <div class="app-container" id="app-container">
+        <!-- Header -->
+        <div class="app-header">
+            <div>
+                <h1 class="logo"><span>貯めない</span>貯金</h1>
+                <p class="app-subtitle">無駄を見える化する節約アプリ</p>
+            </div>
+        </div>
+
+        <!-- Monster Display Container -->
+        <div id="monster-container">
+            <canvas id="pixelart-canvas" width="200" height="200"></canvas>
+            <div class="monster-info">モンスターにエサをあげよう！</div>
+            <div class="monster-level" id="monster-level">Lv. 1</div>
+            <div class="food-counter" id="food-counter">エサ: 0個</div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <i class="fas fa-coins stat-icon"></i>
+                <div class="stat-title">総節約額</div>
+                <div class="stat-value" id="total-savings">¥0</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-calendar-alt stat-icon"></i>
+                <div class="stat-title">今月の節約</div>
+                <div class="stat-value" id="month-savings">¥0</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-fire stat-icon"></i>
+                <div class="stat-title">継続日数</div>
+                <div class="stat-value" id="streak-count">0日</div>
+            </div>
+        </div>
+
+        <!-- Form Panel -->
+        <div class="panel-card">
+            <h2 class="panel-title"><i class="fas fa-plus-circle"></i> 我慢した出費を記録</h2>
+            <form id="savings-form">
+                <div class="form-group">
+                    <label class="form-label" for="item-name">品目</label>
+                    <input type="text" id="item-name" class="form-input" placeholder="例：コンビニのアイス" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="item-price">金額</label>
+                    <input type="number" id="item-price" class="form-input" placeholder="例：180" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="item-category">カテゴリ</label>
+                    <select id="item-category" class="form-input form-select" required>
+                        <option value="食費">食費</option>
+                        <option value="娯楽">娯楽</option>
+                        <option value="コンビニ">コンビニ</option>
+                        <option value="ショッピング">ショッピング</option>
+                        <option value="外食">外食</option>
+                        <option value="交通">交通</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn">我慢した！記録する</button>
+            </form>
+        </div>
+        
+        <!-- Goal Panel -->
+        <div class="panel-card">
+            <h2 class="panel-title"><i class="fas fa-trophy"></i> 節約目標</h2>
+            <div id="goal-form">
+                <div class="form-group">
+                    <label class="form-label" for="goal-amount">目標金額</label>
+                    <input type="number" id="goal-amount" class="form-input" placeholder="例：30000">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="goal-title">目標の名前</label>
+                    <input type="text" id="goal-title" class="form-input" placeholder="例：旅行資金">
+                </div>
+                <button id="set-goal" class="btn">目標を設定</button>
+            </div>
+            
+            <div id="goal-display" style="display: none;">
+                <h3 id="goal-title-display" style="margin-top: 15px; margin-bottom: 15px;"></h3>
+                <div class="progress-container">
+                    <div class="progress-track">
+                        <div class="progress-bar" id="goal-progress"></div>
+                    </div>
+                    <div class="progress-info">
+                        <div id="goal-current">¥0</div>
+                        <div id="goal-target">¥0</div>
+                    </div>
+                </div>
+                <p id="goal-status" style="margin-top: 15px; text-align: center;"></p>
+            </div>
+        </div>
+        
+        <!-- Category Chart Panel -->
+        <div class="panel-card">
+            <h2 class="panel-title"><i class="fas fa-chart-pie"></i> カテゴリ別節約分析</h2>
+            <div class="category-chart-container">
+                <canvas id="category-chart"></canvas>
+            </div>
+        </div>
+        
+        <!-- History Panel -->
+        <div class="panel-card">
+            <h2 class="panel-title"><i class="fas fa-history"></i> 記録履歴</h2>
+            <ul class="history-list" id="history-list">
+                <!-- History items will be added here -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- Chart.js for category visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // Data storage
+        let savings = JSON.parse(localStorage.getItem('savings')) || [];
+        let savingGoal = JSON.parse(localStorage.getItem('savingGoal')) || null;
+        let streakData = JSON.parse(localStorage.getItem('streakData')) || {
+            lastSavedDate: null,
+            currentStreak: 0
+        };
+        
+        // Monster and food state
+        let monsterState = JSON.parse(localStorage.getItem('monsterState')) || {
+            level: 1,
+            foodCount: 0,
+            evolution: 0, // 0: basic, 1: evolved, 2: final form
+            color: "#3498db" // Base color
+        };
+        
+        // DOM Elements
+        const form = document.getElementById('savings-form');
+        const totalSavingsEl = document.getElementById('total-savings');
+        const monthSavingsEl = document.getElementById('month-savings');
+        const streakCountEl = document.getElementById('streak-count');
+        const historyListEl = document.getElementById('history-list');
+        const setGoalBtn = document.getElementById('set-goal');
+        const goalDisplay = document.getElementById('goal-display');
+        const goalTitleDisplay = document.getElementById('goal-title-display');
+        const goalStatus = document.getElementById('goal-status');
+        const goalProgress = document.getElementById('goal-progress');
+        const goalCurrentEl = document.getElementById('goal-current');
+        const goalTargetEl = document.getElementById('goal-target');
+        const loadingScreen = document.getElementById('loading-screen');
+        const appContainer = document.getElementById('app-container');
+        const particlesContainer = document.getElementById('particles');
+        const monsterContainer = document.getElementById('monster-container');
+        const monsterLevelEl = document.getElementById('monster-level');
+        const foodCounterEl = document.getElementById('food-counter');
+        const canvas = document.getElementById('pixelart-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Monster pixel art designs
+        const monsterDesigns = [
+            // Level 1-3 Monster (Baby)
+            {
+                width: 16,
+                height: 16,
+                pixels: [
+                    [0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0],
+                    [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+                    [0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1],
+                    [1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,1,1,1,1,1,0,0,0,0,1,1,1,1,1,0],
+                    [0,0,1,1,1,0,0,0,0,0,0,1,1,1,0,0],
+                    [0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                ]
+            },
+            // Level 4-7 Monster (Medium)
+            {
+                width: 16,
+                height: 16,
+                pixels: [
+                    [0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0],
+                    [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+                    [0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,0,0,1,1,1,1,0,0,1,1,1,1,1],
+                    [1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1],
+                    [1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1],
+                    [0,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0],
+                    [0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0],
+                    [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0]
+                ]
+            },
+            // Level 8+ Monster (Final Form)
+            {
+                width: 16,
+                height: 16,
+                pixels: [
+                    [0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1],
+                    [1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,0,0,0,0,1,1,0,0,0,0,1,1,1],
+                    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1],
+                    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1],
+                    [1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0]
+                ]
+            }
+        ];
+        
+        // Food pixel art
+        const foodDesign = {
+            width: 8,
+            height: 8,
+            pixels: [
+                [0,0,1,1,1,1,0,0],
+                [0,1,1,1,1,1,1,0],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [0,1,1,1,1,1,1,0],
+                [0,0,1,1,1,1,0,0]
+            ]
+        };
+        
+        // Monster speech responses
+        const monsterResponses = [
+            "おいしい！",
+            "もっとほしい！",
+            "ありがとう！",
+            "うれしい！",
+            "おなかいっぱい！",
+            "おいしすぎる！",
+            "節約、すごい！",
+            "がんばったね！"
+        ];
+
+        // Loading Screen Animation
+        window.addEventListener('load', function() {
+            try {
+                // Show loading screen for at least 2 seconds
+                setTimeout(() => {
+                    loadingScreen.style.opacity = '0';
+                    appContainer.style.opacity = '1';
+                    setTimeout(() => {
+                        loadingScreen.style.display = 'none';
+                    }, 500);
+                }, 2000);
+                
+                // Initialize particles
+                createParticles();
+                
+                // Initialize everything else
+                updateUI();
+                drawMonster();
+                initCategoryChart();
+            } catch (err) {
+                console.error('Error during initialization:', err);
+                // Make sure the app loads even if there's an error
+                loadingScreen.style.display = 'none';
+                appContainer.style.opacity = '1';
+            }
+        });
+        
+        // Create particle background effect
+        function createParticles() {
+            try {
+                particlesContainer.innerHTML = '';
+                
+                const particleCount = Math.min(50, Math.max(20, Math.floor(window.innerWidth / 40)));
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    
+                    // Random position
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * window.innerHeight;
+                    
+                    // Random size
+                    const size = Math.random() * 3 + 1;
+                    
+                    // Random animation duration
+                    const duration = Math.random() * 20 + 10;
+                    
+                    // Random delay
+                    const delay = Math.random() * 5;
+                    
+                    // Apply styles
+                    particle.style.left = `${x}px`;
+                    particle.style.top = `${y}px`;
+                    particle.style.width = `${size}px`;
+                    particle.style.height = `${size}px`;
+                    particle.style.animationDuration = `${duration}s`;
+                    particle.style.animationDelay = `${delay}s`;
+                    
+                    particlesContainer.appendChild(particle);
+                }
+            } catch (err) {
+                console.error('Error creating particles:', err);
+                // Continue even if particles fail
+            }
+        }
+        
+        // Draw pixel art on canvas
+        function drawPixelArt(design, x, y, scale, color) {
+            try {
+                const { width, height, pixels } = design;
+                
+                for (let py = 0; py < height; py++) {
+                    for (let px = 0; px < width; px++) {
+                        if (pixels[py][px]) {
+                            ctx.fillStyle = color;
+                            ctx.fillRect(
+                                x + px * scale, 
+                                y + py * scale, 
+                                scale, 
+                                scale
+                            );
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error drawing pixel art:', err);
+            }
+        }
+        
+        // Draw monster on canvas
+        // モンスターのアニメーション用の変数
+        let monsterAnimationOffset = 0;
+        let monsterAnimationDirection = 1;
+        const monsterAnimationSpeed = 0.05;
+        const monsterAnimationMaxOffset = 5;
+        
+        function updateMonsterAnimation() {
+            // モンスターの浮遊アニメーション更新
+            monsterAnimationOffset += monsterAnimationSpeed * monsterAnimationDirection;
+            if (monsterAnimationOffset > monsterAnimationMaxOffset) {
+                monsterAnimationOffset = monsterAnimationMaxOffset;
+                monsterAnimationDirection = -1;
+            } else if (monsterAnimationOffset < 0) {
+                monsterAnimationOffset = 0;
+                monsterAnimationDirection = 1;
+            }
+            
+            // アニメーションフレームを要求
+            requestAnimationFrame(updateMonsterAnimation);
+            
+            // モンスター再描画
+            drawMonsterFrame();
+        }
+        
+        function drawMonsterFrame() {
+            try {
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Determine monster evolution stage based on level
+                let evolutionStage = 0;
+                if (monsterState.level >= 8) {
+                    evolutionStage = 2;
+                } else if (monsterState.level >= 4) {
+                    evolutionStage = 1;
+                }
+                
+                // Get monster design
+                const design = monsterDesigns[evolutionStage];
+                
+                // Calculate scale and position
+                const scale = 8; // Each pixel is drawn as 8x8
+                const x = (canvas.width - design.width * scale) / 2;
+                
+                // Y座標にアニメーションのオフセットを適用
+                const baseY = (canvas.height - design.height * scale) / 2;
+                const y = baseY - monsterAnimationOffset;
+                
+                // Draw monster
+                drawPixelArt(design, x, y, scale, monsterState.color);
+            } catch (err) {
+                console.error('Error in animation frame:', err);
+            }
+        }
+        
+        function drawMonster() {
+            try {
+                // Determine monster evolution stage based on level
+                let evolutionStage = 0;
+                if (monsterState.level >= 8) {
+                    evolutionStage = 2;
+                } else if (monsterState.level >= 4) {
+                    evolutionStage = 1;
+                }
+                
+                // Update evolution state if changed
+                if (monsterState.evolution !== evolutionStage) {
+                    monsterState.evolution = evolutionStage;
+                    
+                    // Save the updated state
+                    localStorage.setItem('monsterState', JSON.stringify(monsterState));
+                }
+                
+                // 初回描画
+                drawMonsterFrame();
+                
+                // アニメーション開始（既に開始している場合は二重に開始しない）
+                if (!window.monsterAnimationStarted) {
+                    window.monsterAnimationStarted = true;
+                    updateMonsterAnimation();
+                }
+                
+                // Update monster level and food count display
+                monsterLevelEl.textContent = `Lv. ${monsterState.level}`;
+                foodCounterEl.textContent = `エサ: ${monsterState.foodCount}個`;
+            } catch (err) {
+                console.error('Error drawing monster:', err);
+                
+                // Fallback display if drawing fails
+                const monsterInfo = document.querySelector('.monster-info');
+                if (monsterInfo) {
+                    monsterInfo.textContent = `モンスター Lv.${monsterState.level}（エサ: ${monsterState.foodCount}個）`;
+                }
+            }
+        }
+        
+        // Add food to monster
+        function feedMonster(amount) {
+            try {
+                // Increment food count
+                monsterState.foodCount++;
+                
+                // Level up based on food count
+                if (monsterState.foodCount >= monsterState.level * 3) {
+                    monsterState.level++;
+                    showSpeechBubble("レベルアップ！");
+                    updateMonsterColor();
+                }
+                
+                // Save monster state
+                localStorage.setItem('monsterState', JSON.stringify(monsterState));
+                
+                // Animate food falling
+                animateFood(amount);
+                
+                // Update monster display
+                drawMonster();
+            } catch (err) {
+                console.error('Error feeding monster:', err);
+            }
+        }
+        
+        // Update monster color based on level
+        function updateMonsterColor() {
+            try {
+                // Colors get more vibrant with higher levels
+                const colors = [
+                    "#3498db", // Level 1
+                    "#2980b9", // Level 2
+                    "#9b59b6", // Level 3
+                    "#8e44ad", // Level 4
+                    "#2ecc71", // Level 5
+                    "#27ae60", // Level 6
+                    "#f1c40f", // Level 7
+                    "#f39c12", // Level 8
+                    "#e74c3c", // Level 9
+                    "#c0392b", // Level 10+
+                ];
+                
+                const colorIndex = Math.min(monsterState.level - 1, colors.length - 1);
+                monsterState.color = colors[colorIndex];
+            } catch (err) {
+                console.error('Error updating monster color:', err);
+                // Fallback to a default color
+                monsterState.color = "#3498db";
+            }
+        }
+        
+        // Show speech bubble
+        function showSpeechBubble(text) {
+            try {
+                // Get random response if no text provided
+                if (!text) {
+                    const randomIndex = Math.floor(Math.random() * monsterResponses.length);
+                    text = monsterResponses[randomIndex];
+                }
+                
+                // Check for existing speech bubble and remove it
+                const existingBubble = document.querySelector('.speech-bubble');
+                if (existingBubble) {
+                    existingBubble.remove();
+                }
+                
+                // Create bubble element
+                const bubble = document.createElement('div');
+                bubble.className = 'speech-bubble';
+                bubble.textContent = text;
+                
+                // Position bubble above monster
+                bubble.style.left = '50%';
+                bubble.style.top = '30%';
+                bubble.style.transform = 'translateX(-50%)';
+                
+                // Add to container
+                monsterContainer.appendChild(bubble);
+                
+                // Remove bubble after animation ends
+                setTimeout(() => {
+                    if (bubble && bubble.parentNode) {
+                        bubble.parentNode.removeChild(bubble);
+                    }
+                }, 3000);
+            } catch (err) {
+                console.error('Error showing speech bubble:', err);
+            }
+        }
+        
+        // Animate food falling
+        function animateFood(amount) {
+            try {
+                // Determine size based on amount
+                let size = 16; // Default size
+                let color = "#ff9900"; // Default color
+                
+                if (amount > 500) {
+                    size = 24;
+                    color = "#ff5500";
+                } else if (amount > 100) {
+                    size = 20;
+                    color = "#ffcc00";
+                }
+                
+                // Create food item
+                const food = document.createElement('div');
+                food.className = 'food-item';
+                food.style.width = `${size}px`;
+                food.style.height = `${size}px`;
+                food.style.backgroundColor = color;
+                
+                // Position randomly above monster
+                const containerRect = monsterContainer.getBoundingClientRect();
+                const randomX = Math.random() * (containerRect.width - 50) + 25;
+                
+                food.style.left = `${randomX}px`;
+                food.style.top = `${containerRect.height / 3}px`;
+                
+                // Add to container
+                monsterContainer.appendChild(food);
+                
+                // Remove after animation
+                setTimeout(() => {
+                    if (food && food.parentNode) {
+                        food.parentNode.removeChild(food);
+                    }
+                    
+                    // Show random response from monster
+                    showSpeechBubble();
+                }, 1000);
+            } catch (err) {
+                console.error('Error animating food:', err);
+            }
+        }
+        
+        // Initialize category chart
+        let categoryChart;
+        
+        function initCategoryChart() {
+            try {
+                const categoryCounts = {};
+                
+                savings.forEach(item => {
+                    if (!categoryCounts[item.category]) {
+                        categoryCounts[item.category] = 0;
+                    }
+                    categoryCounts[item.category] += item.price;
+                });
+                
+                const ctx = document.getElementById('category-chart').getContext('2d');
+                
+                // Get chart colors from CSS variables
+                const primaryNeon = getComputedStyle(document.documentElement).getPropertyValue('--primary-neon').trim();
+                const secondaryNeon = getComputedStyle(document.documentElement).getPropertyValue('--secondary-neon').trim();
+                
+                categoryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(categoryCounts),
+                        datasets: [{
+                            label: '節約額 (円)',
+                            data: Object.values(categoryCounts),
+                            backgroundColor: [
+                                'rgba(0, 238, 255, 0.7)',
+                                'rgba(255, 0, 153, 0.7)',
+                                'rgba(255, 193, 7, 0.7)',
+                                'rgba(156, 39, 176, 0.7)',
+                                'rgba(33, 150, 243, 0.7)',
+                                'rgba(76, 175, 80, 0.7)',
+                                'rgba(233, 30, 99, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgb(0, 238, 255)',
+                                'rgb(255, 0, 153)',
+                                'rgb(255, 193, 7)',
+                                'rgb(156, 39, 176)',
+                                'rgb(33, 150, 243)',
+                                'rgb(76, 175, 80)',
+                                'rgb(233, 30, 99)'
+                            ],
+                            borderWidth: 2,
+                            hoverOffset: 15
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    font: {
+                                        family: "'Noto Sans JP', sans-serif",
+                                        size: 12
+                                    },
+                                    boxWidth: 15,
+                                    padding: 15
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(20, 20, 35, 0.9)',
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                borderWidth: 1,
+                                borderColor: 'rgba(0, 238, 255, 0.3)',
+                                displayColors: true,
+                                caretSize: 6,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        return `${label}: ¥${value.toLocaleString()}`;
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '65%',
+                        radius: '90%'
+                    }
+                });
+            } catch (err) {
+                console.error('Error initializing category chart:', err);
+                
+                // Show fallback message if chart fails
+                const chartContainer = document.querySelector('.category-chart-container');
+                if (chartContainer) {
+                    chartContainer.innerHTML = '<div style="text-align: center; padding: 20px;">グラフを表示できません。データは正常に保存されています。</div>';
+                }
+            }
+        }
+        
+        function updateCategoryChart() {
+            try {
+                if (!categoryChart) return;
+                
+                const categoryCounts = {};
+                
+                savings.forEach(item => {
+                    if (!categoryCounts[item.category]) {
+                        categoryCounts[item.category] = 0;
+                    }
+                    categoryCounts[item.category] += item.price;
+                });
+                
+                categoryChart.data.labels = Object.keys(categoryCounts);
+                categoryChart.data.datasets[0].data = Object.values(categoryCounts);
+                categoryChart.update();
+            } catch (err) {
+                console.error('Error updating category chart:', err);
+            }
+        }
+        
+        // Savings calculations
+        function calcTotalSavings() {
+            try {
+                return savings.reduce((total, item) => total + item.price, 0);
+            } catch (err) {
+                console.error('Error calculating total savings:', err);
+                return 0;
+            }
+        }
+        
+        function calcMonthSavings() {
+            try {
+                const now = new Date();
+                const thisMonth = now.getMonth();
+                const thisYear = now.getFullYear();
+                
+                return savings.reduce((total, item) => {
+                    try {
+                        const itemDate = new Date(item.date);
+                        if (itemDate.getMonth() === thisMonth && itemDate.getFullYear() === thisYear) {
+                            return total + item.price;
+                        }
+                    } catch (e) {
+                        console.error('Error processing item date:', e);
+                    }
+                    return total;
+                }, 0);
+            } catch (err) {
+                console.error('Error calculating month savings:', err);
+                return 0;
+            }
+        }
+        
+        // Update UI
+        function updateUI() {
+            try {
+                // Update savings amounts
+                const totalSavings = calcTotalSavings();
+                const monthSavings = calcMonthSavings();
+                
+                // Use animation for updating numbers
+                animateNumber(totalSavingsEl, totalSavings);
+                animateNumber(monthSavingsEl, monthSavings);
+                
+                // Update streak - no <small> tags (fix)
+                streakCountEl.textContent = `${streakData.currentStreak}日`;
+                
+                // Update history list
+                updateHistoryList();
+                
+                // Update goal progress if any
+                updateGoalProgress(totalSavings);
+                
+                // Update category chart
+                if (categoryChart) {
+                    updateCategoryChart();
+                }
+            } catch (err) {
+                console.error('Error updating UI:', err);
+            }
+        }
+        
+        function updateHistoryList() {
+            try {
+                historyListEl.innerHTML = '';
+                
+                // Show latest 10 entries
+                const recentSavings = [...savings].reverse().slice(0, 10);
+                
+                recentSavings.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'history-item';
+                    
+                    const itemDate = new Date(item.date);
+                    const formattedDate = `${itemDate.getMonth() + 1}/${itemDate.getDate()}`;
+                    
+                    // Get appropriate icon for category
+                    const categoryIcon = getCategoryIcon(item.category);
+                    
+                    li.innerHTML = `
+                        <div class="history-item-details">
+                            <div class="history-item-name">${item.name}</div>
+                            <div class="history-item-category">
+                                <i class="${categoryIcon}"></i>
+                                ${item.category}
+                                <span class="history-item-date">${formattedDate}</span>
+                            </div>
+                        </div>
+                        <div class="history-item-amount">¥${item.price.toLocaleString()}</div>
+                    `;
+                    
+                    historyListEl.appendChild(li);
+                });
+            } catch (err) {
+                console.error('Error updating history list:', err);
+                historyListEl.innerHTML = '<div>履歴を読み込めませんでした</div>';
+            }
+        }
+        
+        function updateGoalProgress(totalSavings) {
+            try {
+                if (savingGoal) {
+                    goalDisplay.style.display = 'block';
+                    goalTitleDisplay.textContent = savingGoal.title;
+                    
+                    const progress = Math.min(totalSavings / savingGoal.amount * 100, 100);
+                    goalProgress.style.width = `${progress}%`;
+                    
+                    goalCurrentEl.textContent = `¥${totalSavings.toLocaleString()}`;
+                    goalTargetEl.textContent = `¥${savingGoal.amount.toLocaleString()}`;
+                    
+                    goalStatus.textContent = `目標達成まで あと ¥${Math.max(0, savingGoal.amount - totalSavings).toLocaleString()} (${Math.round(progress)}%)`;
+                    
+                    if (progress >= 100) {
+                        goalStatus.innerHTML = '🎉 目標達成！おめでとう！';
+                        goalStatus.classList.add('goal-achieved');
+                    } else {
+                        goalStatus.classList.remove('goal-achieved');
+                    }
+                } else {
+                    goalDisplay.style.display = 'none';
+                }
+            } catch (err) {
+                console.error('Error updating goal progress:', err);
+            }
+        }
+        
+        // Helpers
+        function animateNumber(element, targetNumber) {
+            try {
+                const startNumber = parseInt(element.textContent.replace(/[^0-9]/g, '')) || 0;
+                const diff = targetNumber - startNumber;
+                
+                // Skip animation for small changes or if starting from 0
+                if (Math.abs(diff) < 10 || startNumber === 0) {
+                    element.textContent = `¥${targetNumber.toLocaleString()}`;
+                    return;
+                }
+                
+                const duration = 1000; // 1 second
+                const startTime = performance.now();
+                
+                function updateNumber(currentTime) {
+                    try {
+                        const elapsedTime = currentTime - startTime;
+                        const progress = Math.min(elapsedTime / duration, 1);
+                        const easeProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease out
+                        
+                        const currentValue = Math.floor(startNumber + (diff * easeProgress));
+                        element.textContent = `¥${currentValue.toLocaleString()}`;
+                        
+                        if (progress < 1) {
+                            requestAnimationFrame(updateNumber);
+                        }
+                    } catch (err) {
+                        // If animation fails, just set the final value
+                        element.textContent = `¥${targetNumber.toLocaleString()}`;
+                    }
+                }
+                
+                requestAnimationFrame(updateNumber);
+            } catch (err) {
+                console.error('Error animating number:', err);
+                // Fallback to direct setting
+                element.textContent = `¥${targetNumber.toLocaleString()}`;
+            }
+        }
+        
+        function getCategoryIcon(category) {
+            try {
+                switch (category) {
+                    case '食費': return 'fas fa-utensils';
+                    case '娯楽': return 'fas fa-gamepad';
+                    case 'コンビニ': return 'fas fa-store';
+                    case 'ショッピング': return 'fas fa-shopping-bag';
+                    case '外食': return 'fas fa-hamburger';
+                    case '交通': return 'fas fa-bus';
+                    default: return 'fas fa-tag';
+                }
+            } catch (err) {
+                console.error('Error getting category icon:', err);
+                return 'fas fa-tag'; // Default fallback
+            }
+        }
+        
+        // Show notification
+        function showNotification(message) {
+            try {
+                const notification = document.createElement('div');
+                notification.style.position = 'fixed';
+                notification.style.bottom = '20px';
+                notification.style.right = '20px';
+                notification.style.padding = '15px 20px';
+                notification.style.background = 'var(--primary-neon)';
+                notification.style.color = '#000';
+                notification.style.borderRadius = '10px';
+                notification.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+                notification.style.zIndex = '9999';
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateY(20px)';
+                notification.style.transition = 'all 0.3s ease';
+                notification.style.fontSize = '0.9rem';
+                notification.style.fontWeight = 'bold';
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                // Animate in
+                setTimeout(() => {
+                    notification.style.opacity = '1';
+                    notification.style.transform = 'translateY(0)';
+                }, 10);
+                
+                // Animate out after 3 seconds
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    notification.style.transform = 'translateY(20px)';
+                    
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 300);
+                }, 3000);
+            } catch (err) {
+                console.error('Error showing notification:', err);
+                // Notification failure is non-critical
+            }
+        }
+        
+        // Handle form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            try {
+                const name = document.getElementById('item-name').value;
+                const priceInput = document.getElementById('item-price').value;
+                const category = document.getElementById('item-category').value;
+                
+                // Validate input
+                if (!name || !priceInput) {
+                    showNotification('品目と金額を入力してください');
+                    return;
+                }
+                
+                const price = parseInt(priceInput);
+                
+                if (isNaN(price) || price <= 0) {
+                    showNotification('有効な金額を入力してください');
+                    return;
+                }
+                
+                // Add new item
+                const newItem = {
+                    name,
+                    price,
+                    category,
+                    date: new Date().toISOString()
+                };
+                
+                savings.push(newItem);
+                
+                // Update streak data
+                const today = new Date().toDateString();
+                if (streakData.lastSavedDate !== today) {
+                    streakData.currentStreak++;
+                    streakData.lastSavedDate = today;
+                }
+                
+                // Save data
+                localStorage.setItem('savings', JSON.stringify(savings));
+                localStorage.setItem('streakData', JSON.stringify(streakData));
+                
+                // Reset form
+                form.reset();
+                
+                // Update UI
+                updateUI();
+                
+                // Feed the monster
+                feedMonster(price);
+                
+                // Scroll to monster container
+                const monsterContainer = document.getElementById('monster-container');
+                if (monsterContainer) {
+                    monsterContainer.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+                
+                // Show success message
+                showNotification('節約記録が保存されました！');
+            } catch (err) {
+                console.error('Error submitting form:', err);
+                showNotification('保存中にエラーが発生しました。もう一度お試しください。');
+            }
+        });
+        
+        // Handle goal setting
+        setGoalBtn.addEventListener('click', function() {
+            try {
+                const goalAmountInput = document.getElementById('goal-amount').value;
+                const goalTitle = document.getElementById('goal-title').value;
+                
+                if (!goalAmountInput || !goalTitle) {
+                    showNotification('目標金額と名前を入力してください');
+                    return;
+                }
+                
+                const goalAmount = parseInt(goalAmountInput);
+                
+                if (isNaN(goalAmount) || goalAmount <= 0) {
+                    showNotification('有効な金額を入力してください');
+                    return;
+                }
+                
+                savingGoal = {
+                    amount: goalAmount,
+                    title: goalTitle,
+                    date: new Date().toISOString()
+                };
+                
+                localStorage.setItem('savingGoal', JSON.stringify(savingGoal));
+                updateUI();
+                
+                // Show success message
+                showNotification('節約目標が設定されました！');
+            } catch (err) {
+                console.error('Error setting goal:', err);
+                showNotification('目標設定中にエラーが発生しました。もう一度お試しください。');
+            }
+        });
+        
+        // Window resize event
+        window.addEventListener('resize', function() {
+            try {
+                // Update particles on window resize
+                createParticles();
+            } catch (err) {
+                console.error('Error on window resize:', err);
+            }
+        });
+        
+        // Initialize monster with default color if new
+        if (!monsterState.color) {
+            updateMonsterColor();
+        }
+    </script>
+</body>
+</html>
